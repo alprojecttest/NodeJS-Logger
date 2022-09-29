@@ -29,7 +29,7 @@ server.listen(PORT, () => {console.log(`Server running on port ${PORT}`)})
 myEmitter.on('log', (msg) => logEvents(msg));
 
 setTimeout(() => {
-    myEmitter.emit('log', 'Log emitted!')
+    myEmitter.emit('log', 'Data logged successfully')
 }, 3000)
 
 
