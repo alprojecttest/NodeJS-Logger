@@ -1,35 +1,42 @@
-const logEvents = require('./logEvents');
-const EventEmitter = require('events');
-class MyEmitter extends EventEmitter { }
-const myEmitter = new MyEmitter();
-const http = require('http');
-const fs = require('fs');
-const fsPromises = require('fs/promises');
 const path = require('path');
+const express = require('express');
+const app = express();
+const {codes, date} = require('./date');
+const logger = require('./middleware/logEvents')
+const cors = require('cors')
 
 const PORT = process.env.PORT || 7200;
 
-let filePath;
+const whitelist = ['https://yourwebsite.com', 'https://www.youtube.com', 'https://www.google.com', undefined]
+const corsOptions = {
+    origin: (origin, callback) => {
+        if(whitelist.indexOf(origin) !== -1){
+            callback(null, true)
+        }
+        else{
+            callback(new Error('Blocked By CORS'), false)
+        }
+    },
+    optionsSuccessStatus: 200
+}
+app.use(cors(corsOptions));
+app.use(logger)
+app.use(express.urlencoded({ extended: false}))
+app.use(express.json())
+app.use(express.static(path.join(__dirname, 'public')))
+app.use('/subdir', express.static(path.join(__dirname, 'public')))
 
-const server = http.createServer((req, res) => {
-    console.log(req.url, req.method);
-    if(req.url == '/' || req.url == 'index.html'){
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'text/html');
-        filePath = path.join(__dirname, 'views', 'index.html');
-        fs.readFile(filePath, 'utf8', (err, data) => {
-            res.end(data);
-        });
-    }
-});
+app.use('/', require('./router/mainRouer'));
+app.use('/subdir', require('./router/subRouter'));
 
-server.listen(PORT, () => {console.log(`Server running on port ${PORT}`)})
+app.use((req, res, next, err) => {
+    console.error(err.stack);
+    res.statusCode = 500;
+})
 
+app.all('*', (req, res) => {
+    res.statusCode = 404;
+    res.sendFile(path.join(__dirname, 'views', '404.html'))
+})
 
-myEmitter.on('log', (msg) => logEvents(msg));
-
-setTimeout(() => {
-    myEmitter.emit('log', 'Data logged successfully')
-}, 3000)
-
-
+app.listen(PORT, () => {console.log(`Server running on port ${PORT}`)});
